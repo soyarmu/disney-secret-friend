@@ -194,6 +194,7 @@ SecretFriend/
 2. **Completa el formulario**:
    - Tu nombre real
    - Tu email
+   - Una contraseña (mínimo 6 caracteres) para consultar tu amigo secreto después
    - 3 opciones de regalo que te gustarían recibir
 3. **Haz clic en "Registrarme"**
 4. **¡Descubre tu identidad secreta!** Verás tu personaje Disney bailarín asignado
@@ -214,9 +215,11 @@ SecretFriend/
 
 La aplicación creará automáticamente estas columnas:
 
-| nombre | email | regalo1 | regalo2 | regalo3 | personaje | avatar | amigoSecreto | regalosAmigo |
-|--------|-------|---------|---------|---------|-----------|--------|--------------|--------------|
-| María | maria@example.com | Libro | Audífonos | Skincare | Simba Salsero | https://... | Mulan Bachatera | 1. Café \| 2. Vela \| 3. Planta |
+| nombre | email | password | regalo1 | regalo2 | regalo3 | personaje | avatar | amigoSecreto | regalosAmigo |
+|--------|-------|----------|---------|---------|---------|-----------|--------|--------------|--------------|
+| María | maria@example.com | $2b$10$... (hash bcrypt) | Libro | Audífonos | Skincare | Simba Salsero | https://... | Mulan Bachatera | 1. Café \| 2. Vela \| 3. Planta |
+
+> Si ya tenías una hoja con datos antes de agregar contraseñas, la columna `password` se agrega automáticamente al final sin mover las columnas existentes. Los participantes registrados antes de este cambio no tienen contraseña y deberán registrarse de nuevo (o el admin puede limpiar la hoja desde `/admin`).
 
 ## 🔐 Seguridad
 
@@ -287,12 +290,21 @@ colors: {
 
 Este proyecto implementa múltiples capas de seguridad:
 
+- ✅ **Autenticación con Contraseña**: Cada usuario crea su contraseña al registrarse
+- ✅ **Contraseñas Hasheadas**: Usando bcrypt (nunca en texto plano)
 - ✅ **Rate Limiting**: Protección contra ataques de fuerza bruta
 - ✅ **Validación de Inputs**: Sanitización contra XSS e inyecciones
 - ✅ **Headers HTTP Seguros**: CSP, X-Frame-Options, etc.
 - ✅ **Detección de Bots**: Bloqueo de scrapers maliciosos
 - ✅ **Protección de Credenciales**: Variables de entorno nunca en el código
 - ✅ **GitHub Security**: CODEOWNERS, Secret Scanning, Dependabot
+
+### Seguridad de Contraseñas
+
+- Los usuarios crean su contraseña al registrarse (mínimo 6 caracteres)
+- Las contraseñas se hashean con bcrypt (salt rounds: 10)
+- Se requiere email + contraseña para ver el amigo secreto
+- El admin tiene sus propias credenciales separadas
 
 Para más detalles, consulta [SECURITY.md](./SECURITY.md)
 

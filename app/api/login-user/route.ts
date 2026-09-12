@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getParticipantByEmail, getAllParticipants } from '@/lib/googleSheets';
 import { loginRateLimiter } from '@/lib/rateLimiter';
 import { getClientIP, sanitizeString, isValidEmail } from '@/lib/security';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,12 +21,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email } = body;
+    const { email, password } = body;
 
-    // Validar que el email esté presente
-    if (!email) {
+    // Validar que email y password estén presentes
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'El correo electrónico es requerido' },
+        { error: 'Email y contraseña son requeridos' },
         { status: 400 }
       );
     }
@@ -45,8 +46,18 @@ export async function POST(request: NextRequest) {
 
     if (!participant) {
       return NextResponse.json(
-        { error: 'Este correo no está registrado en el reino mágico' },
-        { status: 404 }
+        { error: 'Email o contraseña incorrectos' },
+        { status: 401 }
+      );
+    }
+
+    // Verificar la contraseña
+    const isPasswordValid = await bcrypt.compare(password, participant.password);
+
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { error: 'Email o contraseña incorrectos' },
+        { status: 401 }
       );
     }
 

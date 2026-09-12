@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { addParticipant, getAllParticipants } from '@/lib/googleSheets';
 import { getRandomDancingCharacter, hasAvailableCombinations } from '@/lib/characters';
 import { registerRateLimiter } from '@/lib/rateLimiter';
+import bcrypt from 'bcryptjs';
 import { 
   sanitizeString, 
   isValidEmail, 
@@ -47,12 +48,27 @@ export async function POST(request: NextRequest) {
     }
 
     const body = JSON.parse(bodyText);
-    const { nombre, email, regalo1, regalo2, regalo3 } = body;
+    const { nombre, email, password, regalo1, regalo2, regalo3 } = body;
 
     // Validar que todos los campos estén presentes
-    if (!nombre || !email || !regalo1 || !regalo2 || !regalo3) {
+    if (!nombre || !email || !password || !regalo1 || !regalo2 || !regalo3) {
       return NextResponse.json(
         { error: 'Todos los campos son requeridos' },
+        { status: 400 }
+      );
+    }
+
+    // Validar longitud de la contraseña
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'La contraseña debe tener al menos 6 caracteres' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length > 100) {
+      return NextResponse.json(
+        { error: 'La contraseña es demasiado larga' },
         { status: 400 }
       );
     }
@@ -117,10 +133,15 @@ export async function POST(request: NextRequest) {
     // Asignar un personaje bailarín único y aleatorio
     const dancingCharacter = getRandomDancingCharacter(usedCharacters);
 
+    // Hashear la contraseña
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
     // Crear el objeto del participante con datos sanitizados
     const newParticipant = {
       nombre: sanitizedNombre,
       email: sanitizedEmail,
+      password: hashedPassword,
       regalo1: sanitizedRegalo1,
       regalo2: sanitizedRegalo2,
       regalo3: sanitizedRegalo3,

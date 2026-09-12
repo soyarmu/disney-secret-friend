@@ -11,6 +11,7 @@ const SCOPES = [
 export interface Participant {
   nombre: string;
   email: string;
+  password: string; // Hash de la contraseña
   regalo1: string;
   regalo2: string;
   regalo3: string;
@@ -62,6 +63,7 @@ export async function getParticipantsSheet() {
       headerValues: [
         'nombre',
         'email',
+        'password',
         'regalo1',
         'regalo2',
         'regalo3',
@@ -72,10 +74,13 @@ export async function getParticipantsSheet() {
       ]
     });
   } else {
-    // Asegurarse de que tenga los headers correctos
-    await sheet.setHeaderRow([
+    // Asegurarse de que tenga los headers correctos sin mover columnas existentes.
+    // Si la hoja ya tiene datos con headers antiguos (sin 'password'), las columnas
+    // que falten se agregan al final para no corromper las filas existentes.
+    const requiredHeaders = [
       'nombre',
       'email',
+      'password',
       'regalo1',
       'regalo2',
       'regalo3',
@@ -83,7 +88,25 @@ export async function getParticipantsSheet() {
       'avatar',
       'amigoSecreto',
       'regalosAmigo'
-    ]);
+    ];
+
+    let currentHeaders: string[] = [];
+    try {
+      await sheet.loadHeaderRow();
+      currentHeaders = sheet.headerValues.filter((h) => h && h.trim() !== '');
+    } catch {
+      // Hoja vacía sin header row
+      currentHeaders = [];
+    }
+
+    if (currentHeaders.length === 0) {
+      await sheet.setHeaderRow(requiredHeaders);
+    } else {
+      const missing = requiredHeaders.filter((h) => !currentHeaders.includes(h));
+      if (missing.length > 0) {
+        await sheet.setHeaderRow([...currentHeaders, ...missing]);
+      }
+    }
   }
 
   return sheet;
@@ -92,7 +115,11 @@ export async function getParticipantsSheet() {
 // Función para agregar un participante
 export async function addParticipant(participant: Participant) {
   const sheet = await getParticipantsSheet();
-  await sheet.addRow(participant);
+  // insert: true fuerza INSERT_ROWS. Sin esto la hoja (con fila de encabezado
+  // congelada) usa OVERWRITE y el algoritmo de detección de tabla de la API
+  // de Sheets confunde el rango, pisando siempre la fila 2 en vez de agregar
+  // una fila nueva: cada registro borraba al participante anterior.
+  await sheet.addRow({ ...participant }, { insert: true });
 }
 
 // Función para obtener todos los participantes
@@ -103,6 +130,7 @@ export async function getAllParticipants(): Promise<Participant[]> {
   return rows.map(row => ({
     nombre: row.get('nombre') || '',
     email: row.get('email') || '',
+    password: row.get('password') || '',
     regalo1: row.get('regalo1') || '',
     regalo2: row.get('regalo2') || '',
     regalo3: row.get('regalo3') || '',

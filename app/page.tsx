@@ -7,6 +7,7 @@ import GeminiApiKeyModal from '@/components/GeminiApiKeyModal';
 interface FormData {
   nombre: string;
   email: string;
+  password: string;
   regalo1: string;
   regalo2: string;
   regalo3: string;
@@ -44,6 +45,7 @@ export default function HomePage() {
   const [formData, setFormData] = useState<FormData>({
     nombre: '',
     email: '',
+    password: '',
     regalo1: '',
     regalo2: '',
     regalo3: '',
@@ -57,6 +59,7 @@ export default function HomePage() {
 
   // Estados para Login
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [amigoSecretoData, setAmigoSecretoData] = useState<AmigoSecretoData | null>(null);
@@ -110,7 +113,7 @@ export default function HomePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: loginEmail }),
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
 
       const data = await response.json();
@@ -144,9 +147,11 @@ export default function HomePage() {
     setAmigoSecretoData(null);
     setTuPersonajeInfo(null);
     setLoginEmail('');
+    setLoginPassword('');
     setFormData({
       nombre: '',
       email: '',
+      password: '',
       regalo1: '',
       regalo2: '',
       regalo3: '',
@@ -283,8 +288,27 @@ export default function HomePage() {
                         />
                       </div>
 
+                      <div>
+                        <label className="block text-disney-gold font-semibold mb-2 text-sm">
+                          Crea tu Contraseña
+                        </label>
+                        <input
+                          type="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          required
+                          minLength={6}
+                          className="w-full px-4 py-3 bg-white/10 border border-purple-400/30 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-disney-gold focus:border-transparent transition-all"
+                          placeholder="Mínimo 6 caracteres"
+                        />
+                        <p className="text-xs text-purple-300 mt-1">
+                          🔒 Necesitarás esta contraseña para ver tu amigo secreto
+                        </p>
+                      </div>
+
                       {/* Opción de API Key de Gemini */}
-                      <div className="border border-purple-500/30 rounded-xl p-4 bg-purple-900/20">
+                      {/* <div className="border border-purple-500/30 rounded-xl p-4 bg-purple-900/20">
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-yellow-300 font-semibold text-sm flex items-center gap-2">
                             ✨ Avatar Personalizado con IA (Opcional)
@@ -326,7 +350,7 @@ export default function HomePage() {
                             Por defecto usaremos avatares gratuitos. Si quieres uno personalizado con IA, activa esta opción.
                           </p>
                         )}
-                      </div>
+                      </div> */}
 
                       <div className="space-y-3">
                         <label className="block text-disney-gold font-semibold mb-2 text-sm">
@@ -439,6 +463,23 @@ export default function HomePage() {
                           required
                           className="w-full px-4 py-3 bg-white/10 border border-purple-400/30 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-disney-gold focus:border-transparent transition-all"
                           placeholder="tu@email.com"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-disney-gold font-semibold mb-2 text-sm">
+                          Tu Contraseña
+                        </label>
+                        <input
+                          type="password"
+                          value={loginPassword}
+                          onChange={(e) => {
+                            setLoginPassword(e.target.value);
+                            setLoginError('');
+                          }}
+                          required
+                          className="w-full px-4 py-3 bg-white/10 border border-purple-400/30 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-disney-gold focus:border-transparent transition-all"
+                          placeholder="Ingresa tu contraseña"
                         />
                       </div>
 
