@@ -283,6 +283,19 @@ colors: {
 }
 ```
 
+## 🔐 Seguridad
+
+Este proyecto implementa múltiples capas de seguridad:
+
+- ✅ **Rate Limiting**: Protección contra ataques de fuerza bruta
+- ✅ **Validación de Inputs**: Sanitización contra XSS e inyecciones
+- ✅ **Headers HTTP Seguros**: CSP, X-Frame-Options, etc.
+- ✅ **Detección de Bots**: Bloqueo de scrapers maliciosos
+- ✅ **Protección de Credenciales**: Variables de entorno nunca en el código
+- ✅ **GitHub Security**: CODEOWNERS, Secret Scanning, Dependabot
+
+Para más detalles, consulta [SECURITY.md](./SECURITY.md)
+
 ## 📝 Licencia
 
 Este proyecto es de código abierto y está disponible bajo la licencia MIT.

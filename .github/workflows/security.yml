@@ -1,0 +1,31 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check for secrets in code
+      uses: trufflesecurity/trufflehog@main
+      with:
+        extra_args: --only-verified
+
+    - name: Run npm audit
+      run: |
+        npm ci
+        npm audit --audit-level=moderate
+      continue-on-error: true
+
+    - name: Check for vulnerable dependencies
+      run: |
+        npm audit --production
+      continue-on-error: true

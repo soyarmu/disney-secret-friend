@@ -86,10 +86,27 @@ export interface DancingCharacter {
 // Array para trackear combinaciones ya usadas
 let usedCombinations: Set<string> = new Set();
 
-// Función para generar avatar usando DiceBear API
+// Función para generar avatar usando DiceBear API (GRATIS)
 function generateAvatar(seed: string): string {
-  // Usamos la API de DiceBear con el estilo "fun-emoji" o "avataaars"
-  return `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${encodeURIComponent(seed)}`;
+  // Diferentes estilos de DiceBear disponibles (todos gratuitos)
+  const styles = [
+    'avataaars',
+    'big-smile', 
+    'bottts',
+    'fun-emoji',
+    'lorelei',
+    'micah',
+    'miniavs',
+    'open-peeps',
+    'personas',
+    'pixel-art'
+  ];
+  
+  // Seleccionar un estilo aleatorio basado en el seed
+  const styleIndex = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % styles.length;
+  const selectedStyle = styles[styleIndex];
+  
+  return `https://api.dicebear.com/7.x/${selectedStyle}/svg?seed=${encodeURIComponent(seed)}`;
 }
 
 // Función para obtener una combinación única aleatoria

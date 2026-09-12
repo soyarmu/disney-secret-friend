@@ -1,0 +1,9 @@
+# Este archivo define quién puede aprobar cambios en el código
+# Solo el propietario puede hacer merge de PRs
+
+* @soyarmu
+
+# Archivos críticos requieren aprobación explícita
+/.env.* @soyarmu
+/lib/googleSheets.ts @soyarmu
+/app/api/** @soyarmu

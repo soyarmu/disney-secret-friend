@@ -1,11 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addParticipant, getAllParticipants } from '@/lib/googleSheets';
 import { getRandomDancingCharacter, hasAvailableCombinations } from '@/lib/characters';
+import { registerRateLimiter } from '@/lib/rateLimiter';
+import { 
+  sanitizeString, 
+  isValidEmail, 
+  isValidName, 
+  isValidGiftText,
+  getClientIP,
+  isSuspiciousRequest,
+  isPayloadSafe
+} from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
-    // Obtener datos del body
-    const body = await request.json();
+    // Verificar si la solicitud es sospechosa
+    if (isSuspiciousRequest(request)) {
+      return NextResponse.json(
+        { error: 'Solicitud no permitida' },
+        { status: 403 }
+      );
+    }
+
+    // Rate limiting por IP
+    const clientIP = getClientIP(request);
+    const rateLimitResult = registerRateLimiter.check(clientIP);
+    
+    if (!rateLimitResult.allowed) {
+      const resetIn = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000 / 60);
+      return NextResponse.json(
+        { 
+          error: `Demasiados intentos de registro. Intenta de nuevo en ${resetIn} minutos.`,
+          retryAfter: rateLimitResult.resetTime
+        },
+        { status: 429 }
+      );
+    }
+
+    // Obtener y validar tamaño del body
+    const bodyText = await request.text();
+    if (!isPayloadSafe(bodyText)) {
+      return NextResponse.json(
+        { error: 'Datos demasiado grandes' },
+        { status: 413 }
+      );
+    }
+
+    const body = JSON.parse(bodyText);
     const { nombre, email, regalo1, regalo2, regalo3 } = body;
 
     // Validar que todos los campos estén presentes
@@ -16,11 +57,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Sanitizar y validar inputs
+    const sanitizedNombre = sanitizeString(nombre);
+    const sanitizedEmail = sanitizeString(email.toLowerCase());
+    const sanitizedRegalo1 = sanitizeString(regalo1);
+    const sanitizedRegalo2 = sanitizeString(regalo2);
+    const sanitizedRegalo3 = sanitizeString(regalo3);
+
+    // Validaciones específicas
+    if (!isValidName(sanitizedNombre)) {
+      return NextResponse.json(
+        { error: 'El nombre contiene caracteres no permitidos' },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidEmail(sanitizedEmail)) {
       return NextResponse.json(
         { error: 'El email no tiene un formato válido' },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidGiftText(sanitizedRegalo1) || 
+        !isValidGiftText(sanitizedRegalo2) || 
+        !isValidGiftText(sanitizedRegalo3)) {
+      return NextResponse.json(
+        { error: 'Las opciones de regalo contienen caracteres no permitidos' },
         { status: 400 }
       );
     }
@@ -30,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el email ya está registrado
     const emailExists = existingParticipants.some(
-      (p) => p.email.toLowerCase() === email.toLowerCase()
+      (p) => p.email.toLowerCase() === sanitizedEmail
     );
 
     if (emailExists) {
@@ -54,13 +117,13 @@ export async function POST(request: NextRequest) {
     // Asignar un personaje bailarín único y aleatorio
     const dancingCharacter = getRandomDancingCharacter(usedCharacters);
 
-    // Crear el objeto del participante
+    // Crear el objeto del participante con datos sanitizados
     const newParticipant = {
-      nombre,
-      email,
-      regalo1,
-      regalo2,
-      regalo3,
+      nombre: sanitizedNombre,
+      email: sanitizedEmail,
+      regalo1: sanitizedRegalo1,
+      regalo2: sanitizedRegalo2,
+      regalo3: sanitizedRegalo3,
       personaje: dancingCharacter.nombreCompleto,
       avatar: dancingCharacter.avatar,
     };

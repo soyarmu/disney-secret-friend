@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getParticipantByEmail, getAllParticipants } from '@/lib/googleSheets';
+import { loginRateLimiter } from '@/lib/rateLimiter';
+import { getClientIP, sanitizeString, isValidEmail } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting por IP
+    const clientIP = getClientIP(request);
+    const rateLimitResult = loginRateLimiter.check(clientIP);
+    
+    if (!rateLimitResult.allowed) {
+      const resetIn = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000 / 60);
+      return NextResponse.json(
+        { 
+          error: `Demasiados intentos. Intenta de nuevo en ${resetIn} minutos.`,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { email } = body;
 
@@ -14,9 +30,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Sanitizar y validar email
+    const sanitizedEmail = sanitizeString(email.toLowerCase());
+    
+    if (!isValidEmail(sanitizedEmail)) {
       return NextResponse.json(
         { error: 'El formato del email no es válido' },
         { status: 400 }
@@ -24,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar al participante por email
-    const participant = await getParticipantByEmail(email);
+    const participant = await getParticipantByEmail(sanitizedEmail);
 
     if (!participant) {
       return NextResponse.json(

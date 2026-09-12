@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import GeminiApiKeyModal from '@/components/GeminiApiKeyModal';
 
 interface FormData {
   nombre: string;
@@ -50,6 +51,9 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedCharacter, setAssignedCharacter] = useState<AssignedCharacter | null>(null);
   const [error, setError] = useState<string>('');
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [showGeminiModal, setShowGeminiModal] = useState(false);
 
   // Estados para Login
   const [loginEmail, setLoginEmail] = useState('');
@@ -193,10 +197,10 @@ export default function HomePage() {
                 transition={{ type: 'spring', bounce: 0.5 }}
                 className="text-center mb-8"
               >
-                <h1 className="text-5xl font-bold text-golden mb-3 animate-sparkle">
+                <h1 className="text-5xl font-bold text-golden mb-6 animate-sparkle leading-tight py-2">
                   ✨ Amigo Secreto ✨
                 </h1>
-                <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">
+                <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 leading-tight">
                   Disney Bailarín
                 </h2>
               </motion.div>
@@ -277,6 +281,51 @@ export default function HomePage() {
                           className="w-full px-4 py-3 bg-white/10 border border-purple-400/30 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-disney-gold focus:border-transparent transition-all"
                           placeholder="tu@email.com"
                         />
+                      </div>
+
+                      {/* Opción de API Key de Gemini */}
+                      <div className="border border-purple-500/30 rounded-xl p-4 bg-purple-900/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-yellow-300 font-semibold text-sm flex items-center gap-2">
+                            ✨ Avatar Personalizado con IA (Opcional)
+                            <button
+                              type="button"
+                              onClick={() => setShowGeminiModal(true)}
+                              className="text-xs bg-yellow-500 text-disney-blue px-2 py-1 rounded-full hover:bg-yellow-400 transition-colors"
+                            >
+                              ❓ ¿Cómo?
+                            </button>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                            className="text-xs text-purple-300 hover:text-purple-200 underline"
+                          >
+                            {showApiKeyInput ? 'Ocultar' : 'Activar'}
+                          </button>
+                        </div>
+                        
+                        {showApiKeyInput ? (
+                          <>
+                            <input
+                              type="password"
+                              value={geminiApiKey}
+                              onChange={(e) => setGeminiApiKey(e.target.value)}
+                              placeholder="Tu Gemini API Key (opcional)"
+                              className="w-full px-4 py-2 bg-white/10 border border-purple-400/30 rounded-lg text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all text-sm mb-2"
+                            />
+                            <p className="text-xs text-purple-300 leading-relaxed">
+                              🎨 Con tu API Key de Gemini, generaremos un avatar único con IA.
+                            </p>
+                            <p className="text-xs text-green-300 mt-1">
+                              ✅ Tu API Key solo se usa en TU navegador. Nunca la guardamos.
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-purple-300">
+                            Por defecto usaremos avatares gratuitos. Si quieres uno personalizado con IA, activa esta opción.
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -706,6 +755,12 @@ export default function HomePage() {
           ) : null}
         </AnimatePresence>
       </div>
+
+      {/* Modal de instrucciones de Gemini */}
+      <GeminiApiKeyModal 
+        isOpen={showGeminiModal} 
+        onClose={() => setShowGeminiModal(false)} 
+      />
     </div>
   );
 }
