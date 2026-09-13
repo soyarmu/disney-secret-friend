@@ -70,6 +70,6 @@ class RateLimiter {
 
 // Instancias para diferentes endpoints
 export const loginRateLimiter = new RateLimiter(5, 15 * 60 * 1000); // 5 intentos por 15 minutos
-export const registerRateLimiter = new RateLimiter(3, 60 * 60 * 1000); // 3 registros por hora
+export const registerRateLimiter = new RateLimiter(20, 60 * 60 * 1000); // 20 registros por hora
 export const drawRateLimiter = new RateLimiter(10, 60 * 1000); // 10 intentos por minuto
 export const adminLoginRateLimiter = new RateLimiter(3, 15 * 60 * 1000); // 3 intentos por 15 minutos
