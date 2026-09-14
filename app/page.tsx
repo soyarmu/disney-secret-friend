@@ -721,6 +721,32 @@ export default function HomePage() {
                   ¡Es tu turno de dar magia!
                 </h2>
 
+                {/* Tu personaje asignado */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-purple-400/30 mb-8 flex items-center justify-center gap-4 max-w-md mx-auto"
+                >
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-1 flex-shrink-0">
+                    <div className="w-full h-full rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden">
+                      <img
+                        src={amigoSecretoData.tuAvatar}
+                        alt={amigoSecretoData.tuPersonaje}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <span className="text-xs text-purple-300 font-semibold uppercase tracking-wider block">
+                      Tu personaje asignado
+                    </span>
+                    <span className="text-2xl font-bold text-disney-gold">
+                      {amigoSecretoData.tuPersonaje}
+                    </span>
+                  </div>
+                </motion.div>
+
                 <p className="text-2xl text-purple-200 mb-8">
                   Te tocó regalarle a:
                 </p>
