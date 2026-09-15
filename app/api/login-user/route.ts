@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getParticipantByEmail, getAllParticipants } from '@/lib/googleSheets';
+import { decrypt } from '@/lib/crypto';
 import { loginRateLimiter } from '@/lib/rateLimiter';
 import { getClientIP, sanitizeString, isValidEmail } from '@/lib/security';
 import bcrypt from 'bcryptjs';
@@ -75,8 +76,9 @@ export async function POST(request: NextRequest) {
 
     // Sorteo SÍ realizado - Buscar los datos del amigo secreto
     const allParticipants = await getAllParticipants();
+    const amigoSecretoPersonaje = decrypt(participant.amigoSecreto);
     const amigoSecreto = allParticipants.find(
-      (p) => p.personaje === participant.amigoSecreto
+      (p) => p.personaje === amigoSecretoPersonaje
     );
 
     if (!amigoSecreto) {
