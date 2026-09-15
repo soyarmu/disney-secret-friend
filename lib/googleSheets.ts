@@ -1,5 +1,6 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
+import { decrypt, encrypt, encryptDeterministic, isEncrypted } from './crypto';
 
 // Configuración de las credenciales de Google Service Account
 const SCOPES = [
@@ -119,7 +120,13 @@ export async function addParticipant(participant: Participant) {
   // congelada) usa OVERWRITE y el algoritmo de detección de tabla de la API
   // de Sheets confunde el rango, pisando siempre la fila 2 en vez de agregar
   // una fila nueva: cada registro borraba al participante anterior.
-  await sheet.addRow({ ...participant }, { insert: true });
+  await sheet.addRow(
+    {
+      ...participant,
+      personaje: encryptDeterministic(participant.personaje),
+    },
+    { insert: true }
+  );
 }
 
 // Función para obtener todos los participantes
@@ -134,7 +141,7 @@ export async function getAllParticipants(): Promise<Participant[]> {
     regalo1: row.get('regalo1') || '',
     regalo2: row.get('regalo2') || '',
     regalo3: row.get('regalo3') || '',
-    personaje: row.get('personaje') || '',
+    personaje: decrypt(row.get('personaje') || ''),
     avatar: row.get('avatar') || '',
     amigoSecreto: row.get('amigoSecreto') || '',
     regalosAmigo: row.get('regalosAmigo') || '',
@@ -147,13 +154,55 @@ export async function updateDrawAssignments(assignments: { personaje: string; am
   const rows = await sheet.getRows();
 
   for (const assignment of assignments) {
-    const row = rows.find(r => r.get('personaje') === assignment.personaje);
+    // El personaje se guarda cifrado de forma determinista, así que se busca
+    // por su ciphertext. El fallback a texto plano cubre filas legacy que aún
+    // no hayan pasado por la migración de cifrado.
+    const storedPersonaje = encryptDeterministic(assignment.personaje);
+    const row = rows.find(
+      r => r.get('personaje') === storedPersonaje || r.get('personaje') === assignment.personaje
+    );
     if (row) {
-      row.set('amigoSecreto', assignment.amigoSecreto);
-      row.set('regalosAmigo', assignment.regalosAmigo);
+      row.set('amigoSecreto', encrypt(assignment.amigoSecreto));
+      row.set('regalosAmigo', encrypt(assignment.regalosAmigo));
       await row.save();
     }
   }
+}
+
+// Migración de una sola vez: cifra los valores legacy en texto plano.
+// Idempotente: salta los que ya traen el prefijo de cifrado.
+export async function encryptExistingAssignments(): Promise<number> {
+  const sheet = await getParticipantsSheet();
+  const rows = await sheet.getRows();
+
+  let encrypted = 0;
+  for (const row of rows) {
+    let changed = false;
+
+    const personaje = row.get('personaje') || '';
+    if (personaje.trim() !== '' && !isEncrypted(personaje)) {
+      row.set('personaje', encryptDeterministic(personaje));
+      changed = true;
+    }
+
+    const amigo = row.get('amigoSecreto') || '';
+    if (amigo.trim() !== '' && !isEncrypted(amigo)) {
+      row.set('amigoSecreto', encrypt(amigo));
+      changed = true;
+    }
+
+    const regalos = row.get('regalosAmigo') || '';
+    if (regalos.trim() !== '' && !isEncrypted(regalos)) {
+      row.set('regalosAmigo', encrypt(regalos));
+      changed = true;
+    }
+
+    if (changed) {
+      await row.save();
+      encrypted++;
+    }
+  }
+  return encrypted;
 }
 
 // Función para verificar si ya existen participantes

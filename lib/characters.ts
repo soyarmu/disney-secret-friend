@@ -71,6 +71,7 @@ export const danceStyles = [
   'Tanguero',
   'Tanguera',
   'Flamenco',
+  'Flamenquera',
   'Merengüero',
   'Merengüera',
   'Cumbiambero',
