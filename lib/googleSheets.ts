@@ -1,7 +1,17 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { decrypt, encrypt, encryptDeterministic, isEncrypted } from './crypto';
-import { genderCorrectedFullName, getDanceStyleFromFullName } from './characters';
+import {
+  genderCorrectedFullName,
+  getDanceStyleFromFullName,
+  getBaseCharacterName,
+  isCharacterGenderValid,
+  getAppropriateDanceStyle,
+  generateAvatar,
+  feminineCharacters,
+  masculineCharacters,
+  disneyCharacters,
+} from './characters';
 import { getCharacterImageUrl } from './disneyApi';
 
 // Configuración de las credenciales de Google Service Account
@@ -314,6 +324,178 @@ export async function fixAvatars(): Promise<number> {
   }
 
   return updated;
+}
+
+// Migración: corrige duplicados de personajes Disney y desajustes de género (M/F),
+// reasignando personajes únicos y acordes al género a cada participante.
+// PRESERVA ESTRICTAMENTE EL SORTEO: remapea todas las referencias 'amigoSecreto'
+// para que el círculo de regalos y asignaciones permanezca 100% idéntico.
+export interface CharacterFixResult {
+  totalParticipants: number;
+  reassignedCount: number;
+  remappedDrawsCount: number;
+  changes: {
+    nombre: string;
+    email: string;
+    sexo: string;
+    oldPersonaje: string;
+    newPersonaje: string;
+    reason: string;
+  }[];
+}
+
+export async function fixDuplicatesAndGenderAssignments(): Promise<CharacterFixResult> {
+  const sheet = await getParticipantsSheet();
+  const rows = await sheet.getRows();
+
+  // 1) Leer y desencriptar la información de cada participante
+  const participantsData = rows.map((row) => {
+    const rawPersonaje = row.get('personaje') || '';
+    const decryptedPersonaje = decrypt(rawPersonaje);
+    const sexo = (row.get('sexo') || '').trim();
+    const base = getBaseCharacterName(decryptedPersonaje);
+    const email = row.get('email') || '';
+    const nombre = row.get('nombre') || '';
+
+    return {
+      row,
+      rawPersonaje,
+      decryptedPersonaje,
+      sexo,
+      base,
+      email,
+      nombre,
+    };
+  });
+
+  // Trackear personajes base que se mantienen ocupados
+  const usedBaseCharacters = new Set<string>();
+  const oldToNew = new Map<string, string>();
+  const changes: CharacterFixResult['changes'] = [];
+
+  // 2) Primera pasada: Validar quiénes conservan su personaje base
+  // Solo lo conservan si el género coincide Y no es duplicado de una fila anterior
+  const pendingReassignment: typeof participantsData = [];
+
+  for (const p of participantsData) {
+    if (!p.decryptedPersonaje) continue;
+
+    const isGenderValid = isCharacterGenderValid(p.base, p.sexo);
+    const isDuplicate = usedBaseCharacters.has(p.base);
+
+    if (isGenderValid && !isDuplicate) {
+      // Conserva su personaje base
+      usedBaseCharacters.add(p.base);
+
+      // Asegurar que el sufijo de estilo de baile coincida con su género
+      const correctedFullName = genderCorrectedFullName(p.decryptedPersonaje, p.sexo);
+      if (correctedFullName !== p.decryptedPersonaje) {
+        oldToNew.set(p.decryptedPersonaje, correctedFullName);
+        changes.push({
+          nombre: p.nombre,
+          email: p.email,
+          sexo: p.sexo,
+          oldPersonaje: p.decryptedPersonaje,
+          newPersonaje: correctedFullName,
+          reason: 'Ajuste de género en estilo de baile',
+        });
+      }
+    } else {
+      pendingReassignment.push(p);
+    }
+  }
+
+  // 3) Segunda pasada: Reasignar personajes únicos y acordes al género
+  for (const p of pendingReassignment) {
+    const isFemale = /f|femenino|fem|mujer/i.test(p.sexo);
+    const isMale = /m|masculino|mas|hombre/i.test(p.sexo);
+    const pool = isFemale ? feminineCharacters : isMale ? masculineCharacters : disneyCharacters;
+
+    // Buscar disponibles en el pool de su género que no estén usados
+    const available = pool.filter((char) => !usedBaseCharacters.has(char));
+    if (available.length === 0) {
+      throw new Error(`No hay suficientes personajes Disney disponibles para el género ${p.sexo}`);
+    }
+
+    // Elegir el primer personaje disponible
+    const newBase = available[0];
+    usedBaseCharacters.add(newBase);
+
+    // Obtener estilo de baile apropiado
+    const style = getAppropriateDanceStyle(p.decryptedPersonaje, p.sexo);
+    const newFullName = `${newBase} ${style}`;
+
+    // Obtener avatar Disney real
+    const disneyAvatar = await getCharacterImageUrl(newBase);
+    const avatar = disneyAvatar || generateAvatar(newFullName);
+
+    oldToNew.set(p.decryptedPersonaje, newFullName);
+
+    p.row.set('personaje', encryptDeterministic(newFullName));
+    p.row.set('avatar', avatar);
+
+    const isGenderValid = isCharacterGenderValid(p.base, p.sexo);
+    const reason = !isGenderValid
+      ? `Género incorrecto (${p.base} no coincide con sexo ${p.sexo})`
+      : `Personaje duplicado (${p.base} ya estaba asignado)`;
+
+    changes.push({
+      nombre: p.nombre,
+      email: p.email,
+      sexo: p.sexo,
+      oldPersonaje: p.decryptedPersonaje,
+      newPersonaje: newFullName,
+      reason,
+    });
+  }
+
+  // 4) Tercera pasada: Actualizar filas que conservaron personaje si cambió su sufijo o avatar
+  for (const p of participantsData) {
+    if (pendingReassignment.includes(p)) continue;
+
+    const newFullName = oldToNew.get(p.decryptedPersonaje) || p.decryptedPersonaje;
+
+    // Asegurar cifrado determinista
+    p.row.set('personaje', encryptDeterministic(newFullName));
+
+    // Actualizar avatar a imagen real de Disney si está usando DiceBear o está vacío
+    const currentAvatar = p.row.get('avatar') || '';
+    if (!currentAvatar || currentAvatar.includes('api.dicebear.com')) {
+      const disneyAvatar = await getCharacterImageUrl(p.base);
+      if (disneyAvatar) {
+        p.row.set('avatar', disneyAvatar);
+      }
+    }
+  }
+
+  // 5) Cuarta pasada: PRESERVAR EL SORTEO
+  // Remapear cualquier referencia en 'amigoSecreto' que apuntaba al personaje viejo
+  let remappedDrawsCount = 0;
+  for (const row of rows) {
+    const rawAmigo = row.get('amigoSecreto') || '';
+    if (rawAmigo.trim() !== '') {
+      const decryptedAmigo = decrypt(rawAmigo);
+      const newAmigo = oldToNew.get(decryptedAmigo) || decryptedAmigo;
+      if (newAmigo !== decryptedAmigo || !isEncrypted(rawAmigo)) {
+        row.set('amigoSecreto', encrypt(newAmigo));
+        remappedDrawsCount++;
+      }
+    }
+
+    const rawRegalos = row.get('regalosAmigo') || '';
+    if (rawRegalos.trim() !== '' && !isEncrypted(rawRegalos)) {
+      row.set('regalosAmigo', encrypt(rawRegalos));
+    }
+
+    await row.save();
+  }
+
+  return {
+    totalParticipants: rows.length,
+    reassignedCount: changes.length,
+    remappedDrawsCount,
+    changes,
+  };
 }
 
 // Función para limpiar todo (borrar todos los participantes)

@@ -21,6 +21,7 @@ export default function AdminPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isFixingAvatars, setIsFixingAvatars] = useState(false);
+  const [isFixingCharacters, setIsFixingCharacters] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Cargar estado inicial
@@ -150,6 +151,43 @@ export default function AdminPage() {
       });
     } finally {
       setIsFixingAvatars(false);
+    }
+  };
+
+  const handleFixCharacters = async () => {
+    if (!confirm('¿Reasignar personajes duplicados y corregir géneros a personajes Disney únicos? El sorteo actual NO se alterará.')) {
+      return;
+    }
+
+    setIsFixingCharacters(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/fix-characters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage({
+          type: 'success',
+          text: `✨ ${data.message}`,
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: data.error || 'Error al corregir personajes',
+        });
+      }
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: 'Error de conexión al corregir personajes',
+      });
+    } finally {
+      setIsFixingCharacters(false);
     }
   };
 
@@ -517,6 +555,19 @@ export default function AdminPage() {
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Botón para corregir personajes y géneros */}
+                    <button
+                      onClick={handleFixCharacters}
+                      disabled={isFixingCharacters}
+                      className={`py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
+                        isFixingCharacters
+                          ? 'bg-gray-500 cursor-not-allowed text-gray-300'
+                          : 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50'
+                      }`}
+                    >
+                      {isFixingCharacters ? '⏳ Corrigiendo...' : '🎭 Corregir Duplicados y Géneros Disney'}
+                    </button>
+
                     {/* Botón para actualizar avatares */}
                     <button
                       onClick={handleFixAvatars}
@@ -558,6 +609,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className="mt-4 text-xs text-red-300 space-y-1">
+                    <p>• <strong>Corregir Duplicados y Géneros:</strong> Reasigna personajes a únicos y acordes a su género, preservando 100% el sorteo</p>
                     <p>• <strong>Actualizar Avatares:</strong> Reemplaza los avatares genéricos por la imagen real de cada personaje Disney</p>
                     <p>• <strong>Resetear Sorteo:</strong> Borra las asignaciones pero mantiene los participantes registrados</p>
                     <p>• <strong>Borrar Todo:</strong> Elimina todos los participantes y sus datos (empezar desde cero)</p>

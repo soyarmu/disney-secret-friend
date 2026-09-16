@@ -165,6 +165,38 @@ export function getDanceStyleFromFullName(nombreCompleto: string): string {
   return '';
 }
 
+// Devuelve el nombre base del personaje Disney ("Simba Salsero" -> "Simba").
+export function getBaseCharacterName(nombreCompleto: string): string {
+  const style = getDanceStyleFromFullName(nombreCompleto);
+  if (!style) return nombreCompleto.trim();
+  return nombreCompleto.slice(0, -(style.length + 1)).trim();
+}
+
+// Verifica si un personaje base coincide con el género indicado
+export function isCharacterGenderValid(baseCharacter: string, sexo: string): boolean {
+  const isFemale = /f|femenino|fem|mujer/i.test(sexo || '');
+  const isMale = /m|masculino|mas|hombre/i.test(sexo || '');
+  if (isFemale) return feminineCharacters.includes(baseCharacter);
+  if (isMale) return masculineCharacters.includes(baseCharacter);
+  return true;
+}
+
+// Obtiene el estilo de baile adaptado al género del participante
+export function getAppropriateDanceStyle(nombreCompleto: string, sexo: string): string {
+  const style = getDanceStyleFromFullName(nombreCompleto);
+  const isFemale = /f|femenino|fem|mujer/i.test(sexo || '');
+  const isMale = /m|masculino|mas|hombre/i.test(sexo || '');
+
+  if (style) {
+    const pair = variantToPair.get(style);
+    if (pair) {
+      return isFemale ? pair.fem : isMale ? pair.masc : style;
+    }
+    return style;
+  }
+  return isFemale ? 'Salsera' : 'Salsero';
+}
+
 // Ajusta el estilo de baile de un personaje completo al género del participante.
 // "Bestia Salsero" + sexo F -> "Bestia Salsera". Devuelve el nombre sin cambios si el
 // estilo es neutro o el género ya coincide.
@@ -192,11 +224,8 @@ export interface DancingCharacter {
   avatar: string;
 }
 
-// Array para trackear combinaciones ya usadas
-let usedCombinations: Set<string> = new Set();
-
 // Función para generar avatar usando DiceBear API (GRATIS)
-function generateAvatar(seed: string): string {
+export function generateAvatar(seed: string): string {
   // Diferentes estilos de DiceBear disponibles (todos gratuitos)
   const styles = [
     'avataaars',
@@ -218,12 +247,23 @@ function generateAvatar(seed: string): string {
   return `https://api.dicebear.com/7.x/${selectedStyle}/svg?seed=${encodeURIComponent(seed)}`;
 }
 
-// Función para obtener una combinación única aleatoria.
+// Función para obtener un personaje Disney único aleatorio.
+// Un personaje es ÚNICO por su nombre base ("Flynn Rider"): aunque pueda llevar
+// distintos estilos de baile ("Flynn Rider Bachatero", "Flynn Rider Hip Hopero"),
+// cada personaje de Disney solo puede asignarse a UNA persona. Por eso la unicidad
+// se verifica contra el personaje base, no contra el nombre completo.
 // Según el sexo del participante filtra el pool de personajes:
 //   M -> masculino, F -> femenino, O/sin valor -> cualquiera.
 export function getRandomDancingCharacter(existingCharacters: string[], sexo?: string): DancingCharacter {
-  // Actualizar el set de combinaciones usadas
-  usedCombinations = new Set(existingCharacters);
+  // Personajes base ya usados: de cada nombre completo ("Simba Salsero") se extrae
+  // el personaje ("Simba"). Los existentes con el mismo personaje base se descartan,
+  // sin importar el estilo de baile que tengan.
+  const usedBaseCharacters = new Set(
+    existingCharacters.map((name) => {
+      const style = getDanceStyleFromFullName(name);
+      return style ? name.slice(0, -(style.length + 1)) : name;
+    })
+  );
 
   // Seleccionar el pool de personajes según el género
   const s = (sexo || '').toUpperCase();
@@ -234,24 +274,25 @@ export function getRandomDancingCharacter(existingCharacters: string[], sexo?: s
     isFemale ? feminineCharacters :
     disneyCharacters;
 
-  // Crear todas las combinaciones posibles que no han sido usadas.
+  // Crear todas las combinaciones posibles de personajes no usados.
   // El estilo de baile se elige acorde al género: mujer -> forma femenina (Cumbiambera),
   // hombre -> forma masculina (Cumbiambero). Así nunca se asigna un género incorrecto.
   const availableCombinations: DancingCharacter[] = [];
 
   for (const character of pool) {
+    // Un personaje ya usado (con cualquier estilo) se salta entero.
+    if (usedBaseCharacters.has(character)) continue;
+
     for (const { masc, fem } of Object.values(danceStyleByGender)) {
       const style = isFemale ? fem : isMale ? masc : Math.random() < 0.5 ? masc : fem;
       const nombreCompleto = `${character} ${style}`;
 
-      if (!usedCombinations.has(nombreCompleto)) {
-        availableCombinations.push({
-          personaje: character,
-          estilobaile: style,
-          nombreCompleto,
-          avatar: generateAvatar(nombreCompleto),
-        });
-      }
+      availableCombinations.push({
+        personaje: character,
+        estilobaile: style,
+        nombreCompleto,
+        avatar: generateAvatar(nombreCompleto),
+      });
     }
   }
 
@@ -262,22 +303,14 @@ export function getRandomDancingCharacter(existingCharacters: string[], sexo?: s
 
   // Seleccionar una combinación aleatoria
   const randomIndex = Math.floor(Math.random() * availableCombinations.length);
-  const selected = availableCombinations[randomIndex];
-
-  // Marcar como usada
-  usedCombinations.add(selected.nombreCompleto);
-
-  return selected;
+  return availableCombinations[randomIndex];
 }
 
-// Función para resetear las combinaciones usadas (útil para testing)
-export function resetUsedCombinations() {
-  usedCombinations.clear();
-}
-
-// Función para obtener el total de combinaciones posibles
+// Función para obtener el total de personajes únicos posibles.
+// Como cada personaje de Disney solo se asigna una vez, el máximo es la cantidad
+// de personajes base, no personajes x estilos de baile.
 export function getTotalCombinations(): number {
-  return disneyCharacters.length * Object.keys(danceStyleByGender).length;
+  return disneyCharacters.length;
 }
 
 // Validar que haya suficientes combinaciones
