@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = JSON.parse(bodyText);
-    const { nombre, email, password, regalo1, regalo2, regalo3 } = body;
+    const { nombre, email, password, regalo1, regalo2, regalo3, sexo } = body;
 
     // Validar que todos los campos estén presentes
     if (!nombre || !email || !password || !regalo1 || !regalo2 || !regalo3) {
@@ -69,6 +69,15 @@ export async function POST(request: NextRequest) {
     if (password.length > 100) {
       return NextResponse.json(
         { error: 'La contraseña es demasiado larga' },
+        { status: 400 }
+      );
+    }
+
+    // Normalizar el sexo a M / F / O y validar
+    const sanitizedSexo = typeof sexo === 'string' ? sexo.trim().toUpperCase() : '';
+    if (!['M', 'F', 'O'].includes(sanitizedSexo)) {
+      return NextResponse.json(
+        { error: 'Debes seleccionar un género válido' },
         { status: 400 }
       );
     }
@@ -130,8 +139,12 @@ export async function POST(request: NextRequest) {
     // Obtener personajes ya asignados
     const usedCharacters = existingParticipants.map((p) => p.personaje);
 
-    // Asignar un personaje bailarín único y aleatorio
-    const dancingCharacter = getRandomDancingCharacter(usedCharacters);
+    // Asignar un personaje bailarín único y aleatorio (filtrado por género)
+    const dancingCharacter = getRandomDancingCharacter(usedCharacters, sanitizedSexo);
+
+    // Obtener la imagen real del personaje desde la API de Disney (fallback a DiceBear)
+    const disneyAvatar = await getCharacterImageUrl(dancingCharacter.personaje);
+    const avatar = disneyAvatar ?? dancingCharacter.avatar;
 
     // Hashear la contraseña
     const saltRounds = 10;
@@ -146,7 +159,8 @@ export async function POST(request: NextRequest) {
       regalo2: sanitizedRegalo2,
       regalo3: sanitizedRegalo3,
       personaje: dancingCharacter.nombreCompleto,
-      avatar: dancingCharacter.avatar,
+      avatar,
+      sexo: sanitizedSexo,
     };
 
     // Agregar al Google Sheet
@@ -159,7 +173,7 @@ export async function POST(request: NextRequest) {
         message: '¡Registro exitoso! Tu identidad mágica ha sido asignada',
         data: {
           personaje: dancingCharacter.nombreCompleto,
-          avatar: dancingCharacter.avatar,
+          avatar,
           nombre: dancingCharacter.personaje,
           estilo: dancingCharacter.estilobaile,
         },

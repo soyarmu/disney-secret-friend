@@ -11,6 +11,7 @@ interface FormData {
   regalo1: string;
   regalo2: string;
   regalo3: string;
+  sexo: string;
 }
 
 interface AssignedCharacter {
@@ -49,6 +50,7 @@ export default function HomePage() {
     regalo1: '',
     regalo2: '',
     regalo3: '',
+    sexo: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedCharacter, setAssignedCharacter] = useState<AssignedCharacter | null>(null);
@@ -155,6 +157,7 @@ export default function HomePage() {
       regalo1: '',
       regalo2: '',
       regalo3: '',
+      sexo: '',
     });
   };
 
@@ -304,6 +307,42 @@ export default function HomePage() {
                         />
                         <p className="text-xs text-purple-300 mt-1">
                           🔒 Necesitarás esta contraseña para ver tu amigo secreto
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-disney-gold font-semibold mb-2 text-sm">
+                          Tu Género
+                        </label>
+                        <div className="flex gap-3">
+                          {[
+                            { value: 'M', label: '👨 Masculino' },
+                            { value: 'F', label: '👩 Femenino' },
+                            { value: 'O', label: '🌈 Otro' },
+                          ].map((opt) => (
+                            <label
+                              key={opt.value}
+                              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold ${
+                                formData.sexo === opt.value
+                                  ? 'bg-gradient-to-r from-disney-gold to-yellow-500 text-disney-blue border-transparent'
+                                  : 'bg-white/10 text-purple-200 border-purple-400/30 hover:bg-white/20'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="sexo"
+                                value={opt.value}
+                                checked={formData.sexo === opt.value}
+                                onChange={handleInputChange}
+                                required
+                                className="sr-only"
+                              />
+                              {opt.label}
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-purple-300 mt-1">
+                          🎭 Según tu género recibirás un personaje Disney correspondiente
                         </p>
                       </div>
 

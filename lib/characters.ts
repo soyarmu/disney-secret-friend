@@ -59,6 +59,71 @@ export const disneyCharacters = [
   'Tigger',
 ];
 
+// Lista de personajes Disney masculinos (para asignación según género)
+export const masculineCharacters = [
+  'Mickey Mouse',
+  'Pato Donald',
+  'Goofy',
+  'Pluto',
+  'Simba',
+  'Mufasa',
+  'Timón',
+  'Pumba',
+  'Scar',
+  'Bestia',
+  'Aladdin',
+  'Olaf',
+  'Maui',
+  'Flynn Rider',
+  'Woody',
+  'Buzz Lightyear',
+  'Rex',
+  'Mike Wazowski',
+  'Sulley',
+  'Nemo',
+  'Stitch',
+  'Hércules',
+  'Hades',
+  'Tarzán',
+  'Peter Pan',
+  'Capitán Garfio',
+  'Bruno Madrigal',
+  'Héctor',
+  'Mr. Increíble',
+  'Rayo McQueen',
+  'Mate',
+  'Sombrerero Loco',
+  'Gato de Cheshire',
+  'Winnie the Pooh',
+  'Tigger',
+];
+
+// Lista de personajes Disney femeninos (para asignación según género)
+export const feminineCharacters = [
+  'Minnie Mouse',
+  'Daisy',
+  'Mulan',
+  'Ariel',
+  'Úrsula',
+  'Bella',
+  'Jasmine',
+  'Elsa',
+  'Anna',
+  'Moana',
+  'Rapunzel',
+  'Cenicienta',
+  'Blancanieves',
+  'Aurora',
+  'Jessie',
+  'Boo',
+  'Dory',
+  'Campanita',
+  'Alegría',
+  'Tristeza',
+  'Elastigirl',
+  'Alicia',
+];
+
 // Lista de estilos de baile
 export const danceStyles = [
   'Salsero',
@@ -171,15 +236,24 @@ function generateAvatar(seed: string): string {
   return `https://api.dicebear.com/7.x/${selectedStyle}/svg?seed=${encodeURIComponent(seed)}`;
 }
 
-// Función para obtener una combinación única aleatoria
-export function getRandomDancingCharacter(existingCharacters: string[]): DancingCharacter {
+// Función para obtener una combinación única aleatoria.
+// Según el sexo del participante filtra el pool de personajes:
+//   M -> masculino, F -> femenino, O/sin valor -> cualquiera.
+export function getRandomDancingCharacter(existingCharacters: string[], sexo?: string): DancingCharacter {
   // Actualizar el set de combinaciones usadas
   usedCombinations = new Set(existingCharacters);
+
+  // Seleccionar el pool de personajes según el género
+  const s = (sexo || '').toUpperCase();
+  const pool =
+    s === 'M' ? masculineCharacters :
+    s === 'F' ? feminineCharacters :
+    disneyCharacters;
 
   // Crear todas las combinaciones posibles que no han sido usadas
   const availableCombinations: DancingCharacter[] = [];
 
-  for (const character of disneyCharacters) {
+  for (const character of pool) {
     for (const style of danceStyles) {
       const nombreCompleto = `${character} ${style}`;
       
@@ -194,9 +268,9 @@ export function getRandomDancingCharacter(existingCharacters: string[]): Dancing
     }
   }
 
-  // Si no hay combinaciones disponibles, lanzar error
+  // Si no hay combinaciones disponibles en el pool filtrado, lanzar error
   if (availableCombinations.length === 0) {
-    throw new Error('No hay más combinaciones de personajes disponibles');
+    throw new Error('No hay más combinaciones de personajes disponibles para tu género');
   }
 
   // Seleccionar una combinación aleatoria
