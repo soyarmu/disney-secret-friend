@@ -1,6 +1,7 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { decrypt, encrypt, encryptDeterministic, isEncrypted } from './crypto';
+import { genderCorrectedFullName } from './characters';
 
 // Configuración de las credenciales de Google Service Account
 const SCOPES = [
@@ -20,6 +21,7 @@ export interface Participant {
   avatar: string;
   amigoSecreto?: string; // Personaje de quien le toca regalar
   regalosAmigo?: string; // Los 3 regalos de su amigo secreto
+  sexo?: string; // Género del participante (columna K): M / F
 }
 
 // Función para obtener el documento de Google Sheets
@@ -71,7 +73,8 @@ export async function getParticipantsSheet() {
         'personaje',
         'avatar',
         'amigoSecreto',
-        'regalosAmigo'
+        'regalosAmigo',
+        'sexo'
       ]
     });
   } else {
@@ -88,7 +91,8 @@ export async function getParticipantsSheet() {
       'personaje',
       'avatar',
       'amigoSecreto',
-      'regalosAmigo'
+      'regalosAmigo',
+      'sexo'
     ];
 
     let currentHeaders: string[] = [];
@@ -145,6 +149,7 @@ export async function getAllParticipants(): Promise<Participant[]> {
     avatar: row.get('avatar') || '',
     amigoSecreto: row.get('amigoSecreto') || '',
     regalosAmigo: row.get('regalosAmigo') || '',
+    sexo: row.get('sexo') || '',
   }));
 }
 
@@ -230,6 +235,51 @@ export async function resetDraw() {
     row.set('regalosAmigo', '');
     await row.save();
   }
+}
+
+// Migración: ajusta el género del estilo de baile de cada personaje según la columna 'sexo'
+// (columna K). Como 'personaje' es la llave de join del sorteo, se actualizan de forma
+// consistente también las referencias 'amigoSecreto' para que el círculo del sorteo ya
+// realizado no se rompa. Idempotente: las filas cuyo estilo ya coincide con su sexo no cambian.
+export async function fixDanceStyleGenderAssignments(): Promise<number> {
+  const sheet = await getParticipantsSheet();
+  const rows = await sheet.getRows();
+
+  // 1) Calcular el mapeo old -> new de cada personaje que necesita cambio.
+  const oldToNew = new Map<string, string>();
+  const rowPersonaje = new Map<string, { row: typeof rows[0]; sexo: string }>();
+
+  for (const row of rows) {
+    const personaje = decrypt(row.get('personaje') || '');
+    const sexo = row.get('sexo') || '';
+    if (!personaje) continue;
+    rowPersonaje.set(personaje, { row, sexo });
+    const corrected = genderCorrectedFullName(personaje, sexo);
+    if (corrected !== personaje) {
+      oldToNew.set(personaje, corrected);
+    }
+  }
+
+  // 2) Aplicar el nuevo personaje a cada fila (cifrado determinista para que el join siga igual).
+  for (const [oldP, newP] of oldToNew) {
+    const entry = rowPersonaje.get(oldP);
+    if (!entry) continue;
+    entry.row.set('personaje', encryptDeterministic(newP));
+    await entry.row.save();
+  }
+
+  // 3) Remapear las referencias amigoSecreto: si apuntaban al personaje viejo, apuntar al nuevo.
+  for (const row of rows) {
+    const amigo = decrypt(row.get('amigoSecreto') || '');
+    if (!amigo) continue;
+    const newAmigo = oldToNew.get(amigo);
+    if (newAmigo && newAmigo !== amigo) {
+      row.set('amigoSecreto', encrypt(newAmigo));
+      await row.save();
+    }
+  }
+
+  return oldToNew.size;
 }
 
 // Función para limpiar todo (borrar todos los participantes)

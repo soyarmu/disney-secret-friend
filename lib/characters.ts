@@ -83,6 +83,60 @@ export const danceStyles = [
   'Disco Queen',
 ];
 
+// Pares masculino/femenino de cada estilo de baile con género.
+// Los estilos neutros (Breakdancer, Vals Master) se omiten a propósito.
+const danceStyleByGender: Record<string, { masc: string; fem: string }> = {
+  Salsero: { masc: 'Salsero', fem: 'Salsera' },
+  Salsera: { masc: 'Salsero', fem: 'Salsera' },
+  Bachatero: { masc: 'Bachatero', fem: 'Bachatera' },
+  Bachatera: { masc: 'Bachatero', fem: 'Bachatera' },
+  Reggaetonero: { masc: 'Reggaetonero', fem: 'Reggaetonera' },
+  Reggaetonera: { masc: 'Reggaetonero', fem: 'Reggaetonera' },
+  Tanguero: { masc: 'Tanguero', fem: 'Tanguera' },
+  Tanguera: { masc: 'Tanguero', fem: 'Tanguera' },
+  Flamenco: { masc: 'Flamenco', fem: 'Flamenquera' },
+  Flamenquera: { masc: 'Flamenco', fem: 'Flamenquera' },
+  Merengüero: { masc: 'Merengüero', fem: 'Merengüera' },
+  Merengüera: { masc: 'Merengüero', fem: 'Merengüera' },
+  Cumbiambero: { masc: 'Cumbiambero', fem: 'Cumbiambera' },
+  Cumbiambera: { masc: 'Cumbiambero', fem: 'Cumbiambera' },
+  'Hip Hopero': { masc: 'Hip Hopero', fem: 'Hip Hopera' },
+  'Hip Hopera': { masc: 'Hip Hopero', fem: 'Hip Hopera' },
+  'Disco King': { masc: 'Disco King', fem: 'Disco Queen' },
+  'Disco Queen': { masc: 'Disco King', fem: 'Disco Queen' },
+};
+
+// Devuelve el sufijo de estilo de baile de un personaje completo ("Simba Salsero" -> "Salsero").
+export function getDanceStyleFromFullName(nombreCompleto: string): string {
+  // El estilo siempre es la última palabra o las últimas dos ("Hip Hopero", "Vals Master", "Disco King").
+  const longest = [...danceStyles].sort((a, b) => b.length - a.length);
+  for (const style of longest) {
+    if (nombreCompleto.endsWith(` ${style}`)) {
+      return style;
+    }
+  }
+  return '';
+}
+
+// Ajusta el estilo de baile de un personaje completo al género del participante.
+// "Bestia Salsero" + sexo F -> "Bestia Salsera". Devuelve el nombre sin cambios si el
+// estilo es neutro o el género ya coincide.
+export function genderCorrectedFullName(nombreCompleto: string, sexo: string): string {
+  const style = getDanceStyleFromFullName(nombreCompleto);
+  if (!style) return nombreCompleto;
+
+  const pair = danceStyleByGender[style];
+  if (!pair) return nombreCompleto; // Estilo neutro (Breakdancer, Vals Master)
+
+  const isFemale = /f|femenino|fem|mujer/i.test(sexo || '');
+  const isMale = /m|masculino|mas|hombre/i.test(sexo || '');
+  const target = isFemale ? pair.fem : isMale ? pair.masc : null;
+  if (!target || target === style) return nombreCompleto;
+
+  const base = nombreCompleto.slice(0, -style.length);
+  return base + target;
+}
+
 // Interfaz para la combinación de personaje bailarín
 export interface DancingCharacter {
   personaje: string;
