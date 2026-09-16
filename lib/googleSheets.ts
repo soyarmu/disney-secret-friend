@@ -1,7 +1,8 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { decrypt, encrypt, encryptDeterministic, isEncrypted } from './crypto';
-import { genderCorrectedFullName } from './characters';
+import { genderCorrectedFullName, getDanceStyleFromFullName } from './characters';
+import { getCharacterImageUrl } from './disneyApi';
 
 // Configuración de las credenciales de Google Service Account
 const SCOPES = [
@@ -280,6 +281,39 @@ export async function fixDanceStyleGenderAssignments(): Promise<number> {
   }
 
   return oldToNew.size;
+}
+
+// Migración: reemplaza los avatares legacy de DiceBear por la imagen real de
+// Disney de los personajes ya existentes en la hoja (registrados antes de que
+// existiera lib/disneyApi.ts). Idempotente: salta filas cuyo avatar ya no es
+// de DiceBear y filas donde la API no devuelve imagen.
+export async function fixAvatars(): Promise<number> {
+  const sheet = await getParticipantsSheet();
+  const rows = await sheet.getRows();
+
+  let updated = 0;
+  for (const row of rows) {
+    const personaje = decrypt(row.get('personaje') || '');
+    const avatar = row.get('avatar') || '';
+    if (!personaje) continue;
+
+    // Solo nos interesa reemplazar los avatares legacy de DiceBear. Los que ya
+    // tengan otra imagen (ej. la real de Disney) se dejan intactos.
+    if (avatar && !avatar.includes('api.dicebear.com')) continue;
+
+    // Quitar el sufijo de baile ("Simba Salsero" -> "Simba") para buscar por nombre base.
+    const style = getDanceStyleFromFullName(personaje);
+    const base = style ? personaje.slice(0, -(style.length + 1)) : personaje;
+
+    const disneyAvatar = await getCharacterImageUrl(base);
+    if (disneyAvatar && disneyAvatar !== avatar) {
+      row.set('avatar', disneyAvatar);
+      await row.save();
+      updated++;
+    }
+  }
+
+  return updated;
 }
 
 // Función para limpiar todo (borrar todos los participantes)

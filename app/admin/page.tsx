@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isFixingAvatars, setIsFixingAvatars] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Cargar estado inicial
@@ -112,6 +113,43 @@ export default function AdminPage() {
       });
     } finally {
       setIsDrawing(false);
+    }
+  };
+
+  const handleFixAvatars = async () => {
+    if (!confirm('¿Actualizar los avatares de todos los participantes a su imagen real de Disney?')) {
+      return;
+    }
+
+    setIsFixingAvatars(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/fix-avatars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage({
+          type: 'success',
+          text: `✨ ${data.message}`,
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: data.error || 'Error al actualizar los avatares',
+        });
+      }
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: 'Error de conexión al actualizar los avatares',
+      });
+    } finally {
+      setIsFixingAvatars(false);
     }
   };
 
@@ -479,6 +517,19 @@ export default function AdminPage() {
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Botón para actualizar avatares */}
+                    <button
+                      onClick={handleFixAvatars}
+                      disabled={isFixingAvatars}
+                      className={`py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
+                        isFixingAvatars
+                          ? 'bg-gray-500 cursor-not-allowed text-gray-300'
+                          : 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/50'
+                      }`}
+                    >
+                      {isFixingAvatars ? '⏳ Actualizando...' : '🖼️ Actualizar Avatares Disney'}
+                    </button>
+
                     {/* Botón para resetear el sorteo */}
                     <button
                       onClick={() => handleReset('reset-draw')}
@@ -507,6 +558,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className="mt-4 text-xs text-red-300 space-y-1">
+                    <p>• <strong>Actualizar Avatares:</strong> Reemplaza los avatares genéricos por la imagen real de cada personaje Disney</p>
                     <p>• <strong>Resetear Sorteo:</strong> Borra las asignaciones pero mantiene los participantes registrados</p>
                     <p>• <strong>Borrar Todo:</strong> Elimina todos los participantes y sus datos (empezar desde cero)</p>
                   </div>
