@@ -39,6 +39,14 @@ const DISNEY_NAME_MAP: Record<string, string> = {
   'Gato de Cheshire': 'Cheshire Cat',
 };
 
+// Overrides manuales para personajes con imagen rota o ausente en la API de Disney
+const MANUAL_IMAGE_OVERRIDES: Record<string, string> = {
+  'Rayo McQueen':
+    'https://upload.wikimedia.org/wikipedia/commons/0/0e/Lightning_McQueen_at_Disney%27s_Hollywood_Studios_%286746004967%29_%28cropped%29.jpg',
+  'Lightning McQueen':
+    'https://upload.wikimedia.org/wikipedia/commons/0/0e/Lightning_McQueen_at_Disney%27s_Hollywood_Studios_%286746004967%29_%28cropped%29.jpg',
+};
+
 // Cache en memoria por nombre normalizado para no repetir llamadas a la API.
 const imageCache = new Map<string, string | null>();
 
@@ -94,7 +102,16 @@ function pickBestImage(results: DisneyCharacter[], query: string): string | null
 
 // Obtiene la imagen real del personaje, o null si no se encuentra.
 export async function getCharacterImageUrl(name: string): Promise<string | null> {
+  const trimmed = name.trim();
+  if (MANUAL_IMAGE_OVERRIDES[trimmed]) {
+    return MANUAL_IMAGE_OVERRIDES[trimmed];
+  }
+
   const query = resolveQueryName(name);
+  if (MANUAL_IMAGE_OVERRIDES[query]) {
+    return MANUAL_IMAGE_OVERRIDES[query];
+  }
+
   const cacheKey = query.toLowerCase();
   if (imageCache.has(cacheKey)) return imageCache.get(cacheKey) ?? null;
 

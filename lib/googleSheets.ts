@@ -307,10 +307,6 @@ export async function fixAvatars(): Promise<number> {
     const avatar = row.get('avatar') || '';
     if (!personaje) continue;
 
-    // Solo nos interesa reemplazar los avatares legacy de DiceBear. Los que ya
-    // tengan otra imagen (ej. la real de Disney) se dejan intactos.
-    if (avatar && !avatar.includes('api.dicebear.com')) continue;
-
     // Quitar el sufijo de baile ("Simba Salsero" -> "Simba") para buscar por nombre base.
     const style = getDanceStyleFromFullName(personaje);
     const base = style ? personaje.slice(0, -(style.length + 1)) : personaje;
@@ -458,13 +454,11 @@ export async function fixDuplicatesAndGenderAssignments(): Promise<CharacterFixR
     // Asegurar cifrado determinista
     p.row.set('personaje', encryptDeterministic(newFullName));
 
-    // Actualizar avatar a imagen real de Disney si está usando DiceBear o está vacío
+    // Actualizar avatar a imagen real de Disney si está usando DiceBear, está vacío o la URL cambió
     const currentAvatar = p.row.get('avatar') || '';
-    if (!currentAvatar || currentAvatar.includes('api.dicebear.com')) {
-      const disneyAvatar = await getCharacterImageUrl(p.base);
-      if (disneyAvatar) {
-        p.row.set('avatar', disneyAvatar);
-      }
+    const disneyAvatar = await getCharacterImageUrl(p.base);
+    if (disneyAvatar && disneyAvatar !== currentAvatar) {
+      p.row.set('avatar', disneyAvatar);
     }
   }
 
