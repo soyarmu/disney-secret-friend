@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addParticipant, getAllParticipants } from '@/lib/googleSheets';
 import { getRandomDancingCharacter, hasAvailableCombinations } from '@/lib/characters';
+import { getCharacterImageUrl } from '@/lib/disneyApi';
 import { registerRateLimiter } from '@/lib/rateLimiter';
 import bcrypt from 'bcryptjs';
 import { 
