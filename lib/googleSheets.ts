@@ -158,8 +158,8 @@ export async function getAllParticipants(): Promise<Participant[]> {
     regalo3: row.get('regalo3') || '',
     personaje: decrypt(row.get('personaje') || ''),
     avatar: row.get('avatar') || '',
-    amigoSecreto: row.get('amigoSecreto') || '',
-    regalosAmigo: row.get('regalosAmigo') || '',
+    amigoSecreto: decrypt(row.get('amigoSecreto') || ''),
+    regalosAmigo: decrypt(row.get('regalosAmigo') || ''),
     sexo: row.get('sexo') || '',
   }));
 }

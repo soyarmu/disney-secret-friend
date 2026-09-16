@@ -121,21 +121,43 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Endpoint GET para verificar el estado del sorteo
+// Endpoint GET para verificar el estado del sorteo y obtener información de participantes
 export async function GET() {
   try {
     const participants = await getAllParticipants();
-    
+
     const hasDrawn = participants.some(p => p.amigoSecreto && p.amigoSecreto.trim() !== '');
-    
+
+    // Mapear participantes con su amigo secreto y avatar correspondiente
+    const participantsList = participants.map((p) => {
+      const assignedParticipant = p.amigoSecreto
+        ? participants.find((other) => other.personaje === p.amigoSecreto)
+        : null;
+
+      const regalos = [p.regalo1, p.regalo2, p.regalo3].filter(Boolean);
+
+      return {
+        nombre: p.nombre,
+        email: p.email,
+        sexo: p.sexo,
+        personaje: p.personaje,
+        avatar: p.avatar,
+        regalos,
+        amigoSecreto: p.amigoSecreto || null,
+        amigoSecretoAvatar: assignedParticipant?.avatar || null,
+        amigoSecretoNombre: assignedParticipant?.nombre || null,
+      };
+    });
+
     return NextResponse.json({
       totalParticipants: participants.length,
       drawCompleted: hasDrawn,
       canDraw: participants.length >= 2 && !hasDrawn,
+      participants: participantsList,
     });
   } catch (error) {
     console.error('Error obteniendo estado del sorteo:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al obtener el estado del sorteo' },
       { status: 500 }
