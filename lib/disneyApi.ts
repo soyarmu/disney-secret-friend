@@ -65,7 +65,9 @@ async function fetchDisneyCharacters(query: string): Promise<DisneyCharacter[]> 
     if (!response.ok) return [];
     const json = await response.json();
     const data = json?.data;
-    return Array.isArray(data) ? (data as DisneyCharacter[]) : [];
+    if (Array.isArray(data)) return data as DisneyCharacter[];
+    if (data && typeof data === 'object') return [data as DisneyCharacter];
+    return [];
   } catch (error) {
     console.error('Error consultando Disney API:', error);
     return [];
