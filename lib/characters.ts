@@ -124,52 +124,34 @@ export const feminineCharacters = [
   'Alicia',
 ];
 
-// Lista de estilos de baile
-export const danceStyles = [
-  'Salsero',
-  'Salsera',
-  'Bachatero',
-  'Bachatera',
-  'Reggaetonero',
-  'Reggaetonera',
-  'Breakdancer',
-  'Tanguero',
-  'Tanguera',
-  'Flamenco',
-  'Flamenquera',
-  'Merengüero',
-  'Merengüera',
-  'Cumbiambero',
-  'Cumbiambera',
-  'Hip Hopero',
-  'Hip Hopera',
-  'Vals Master',
-  'Disco King',
-  'Disco Queen',
-];
-
-// Pares masculino/femenino de cada estilo de baile con género.
-// Los estilos neutros (Breakdancer, Vals Master) se omiten a propósito.
-const danceStyleByGender: Record<string, { masc: string; fem: string }> = {
-  Salsero: { masc: 'Salsero', fem: 'Salsera' },
-  Salsera: { masc: 'Salsero', fem: 'Salsera' },
-  Bachatero: { masc: 'Bachatero', fem: 'Bachatera' },
-  Bachatera: { masc: 'Bachatero', fem: 'Bachatera' },
-  Reggaetonero: { masc: 'Reggaetonero', fem: 'Reggaetonera' },
-  Reggaetonera: { masc: 'Reggaetonero', fem: 'Reggaetonera' },
-  Tanguero: { masc: 'Tanguero', fem: 'Tanguera' },
-  Tanguera: { masc: 'Tanguero', fem: 'Tanguera' },
-  Flamenco: { masc: 'Flamenco', fem: 'Flamenquera' },
-  Flamenquera: { masc: 'Flamenco', fem: 'Flamenquera' },
-  Merengüero: { masc: 'Merengüero', fem: 'Merengüera' },
-  Merengüera: { masc: 'Merengüero', fem: 'Merengüera' },
-  Cumbiambero: { masc: 'Cumbiambero', fem: 'Cumbiambera' },
-  Cumbiambera: { masc: 'Cumbiambero', fem: 'Cumbiambera' },
-  'Hip Hopero': { masc: 'Hip Hopero', fem: 'Hip Hopera' },
-  'Hip Hopera': { masc: 'Hip Hopero', fem: 'Hip Hopera' },
-  'Disco King': { masc: 'Disco King', fem: 'Disco Queen' },
-  'Disco Queen': { masc: 'Disco King', fem: 'Disco Queen' },
+// Danzas canónicas con sus variantes masculina/femenina.
+// UNA sola entrada por danza: Cumbia -> { Cumbiambero, Cumbiambera }, sin duplicar.
+// Los estilos neutros (Breakdancer, Vals Master) usan la misma forma en ambos géneros.
+const danceStyleByGender: Record<string, { base: string; masc: string; fem: string }> = {
+  Salsa: { base: 'Salsa', masc: 'Salsero', fem: 'Salsera' },
+  Bachata: { base: 'Bachata', masc: 'Bachatero', fem: 'Bachatera' },
+  Reggaeton: { base: 'Reggaeton', masc: 'Reggaetonero', fem: 'Reggaetonera' },
+  Tango: { base: 'Tango', masc: 'Tanguero', fem: 'Tanguera' },
+  Flamenco: { base: 'Flamenco', masc: 'Flamenco', fem: 'Flamenquera' },
+  Merengue: { base: 'Merengue', masc: 'Merengüero', fem: 'Merengüera' },
+  Cumbia: { base: 'Cumbia', masc: 'Cumbiambero', fem: 'Cumbiambera' },
+  'Hip Hop': { base: 'Hip Hop', masc: 'Hip Hopero', fem: 'Hip Hopera' },
+  Disco: { base: 'Disco', masc: 'Disco King', fem: 'Disco Queen' },
+  Breakdance: { base: 'Breakdance', masc: 'Breakdancer', fem: 'Breakdancer' },
+  Vals: { base: 'Vals', masc: 'Vals Master', fem: 'Vals Master' },
 };
+
+// Todas las variantes posibles, para reconocer un estilo dentro de un nombre completo.
+export const danceStyles: string[] = Object.values(danceStyleByGender).flatMap(({ masc, fem }) =>
+  masc === fem ? [masc] : [masc, fem]
+);
+
+// Lookup variante -> { masc, fem } (derivado de una sola fuente, sin duplicados a mano).
+const variantToPair = new Map<string, { masc: string; fem: string }>();
+for (const { masc, fem } of Object.values(danceStyleByGender)) {
+  variantToPair.set(masc, { masc, fem });
+  variantToPair.set(fem, { masc, fem });
+}
 
 // Devuelve el sufijo de estilo de baile de un personaje completo ("Simba Salsero" -> "Salsero").
 export function getDanceStyleFromFullName(nombreCompleto: string): string {
@@ -190,7 +172,7 @@ export function genderCorrectedFullName(nombreCompleto: string, sexo: string): s
   const style = getDanceStyleFromFullName(nombreCompleto);
   if (!style) return nombreCompleto;
 
-  const pair = danceStyleByGender[style];
+  const pair = variantToPair.get(style);
   if (!pair) return nombreCompleto; // Estilo neutro (Breakdancer, Vals Master)
 
   const isFemale = /f|femenino|fem|mujer/i.test(sexo || '');
@@ -245,18 +227,23 @@ export function getRandomDancingCharacter(existingCharacters: string[], sexo?: s
 
   // Seleccionar el pool de personajes según el género
   const s = (sexo || '').toUpperCase();
+  const isFemale = s === 'F';
+  const isMale = s === 'M';
   const pool =
-    s === 'M' ? masculineCharacters :
-    s === 'F' ? feminineCharacters :
+    isMale ? masculineCharacters :
+    isFemale ? feminineCharacters :
     disneyCharacters;
 
-  // Crear todas las combinaciones posibles que no han sido usadas
+  // Crear todas las combinaciones posibles que no han sido usadas.
+  // El estilo de baile se elige acorde al género: mujer -> forma femenina (Cumbiambera),
+  // hombre -> forma masculina (Cumbiambero). Así nunca se asigna un género incorrecto.
   const availableCombinations: DancingCharacter[] = [];
 
   for (const character of pool) {
-    for (const style of danceStyles) {
+    for (const { masc, fem } of Object.values(danceStyleByGender)) {
+      const style = isFemale ? fem : isMale ? masc : Math.random() < 0.5 ? masc : fem;
       const nombreCompleto = `${character} ${style}`;
-      
+
       if (!usedCombinations.has(nombreCompleto)) {
         availableCombinations.push({
           personaje: character,
@@ -290,7 +277,7 @@ export function resetUsedCombinations() {
 
 // Función para obtener el total de combinaciones posibles
 export function getTotalCombinations(): number {
-  return disneyCharacters.length * danceStyles.length;
+  return disneyCharacters.length * Object.keys(danceStyleByGender).length;
 }
 
 // Validar que haya suficientes combinaciones
