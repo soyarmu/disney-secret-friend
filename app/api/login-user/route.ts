@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getParticipantByEmail, getAllParticipants } from '@/lib/googleSheets';
+import { getAllParticipants } from '@/lib/googleSheets';
 import { decrypt } from '@/lib/crypto';
 import { loginRateLimiter } from '@/lib/rateLimiter';
 import { getClientIP, sanitizeString, isValidEmail } from '@/lib/security';
@@ -10,11 +10,11 @@ export async function POST(request: NextRequest) {
     // Rate limiting por IP
     const clientIP = getClientIP(request);
     const rateLimitResult = loginRateLimiter.check(clientIP);
-    
+
     if (!rateLimitResult.allowed) {
       const resetIn = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000 / 60);
       return NextResponse.json(
-        { 
+        {
           error: `Demasiados intentos. Intenta de nuevo en ${resetIn} minutos.`,
         },
         { status: 429 }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     // Sanitizar y validar email
     const sanitizedEmail = sanitizeString(email.toLowerCase());
-    
+
     if (!isValidEmail(sanitizedEmail)) {
       return NextResponse.json(
         { error: 'El formato del email no es válido' },
@@ -42,8 +42,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar al participante por email
-    const participant = await getParticipantByEmail(sanitizedEmail);
+    // Obtener participantes y buscar al usuario
+    const allParticipants = await getAllParticipants();
+    const participant = allParticipants.find(
+      (p) => p.email.toLowerCase() === sanitizedEmail.toLowerCase()
+    );
 
     if (!participant) {
       return NextResponse.json(
@@ -62,6 +65,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Lista de personajes participantes (solo personaje y avatar para proteger privacidad)
+    const participantes = allParticipants.map((p) => ({
+      personaje: p.personaje,
+      avatar: p.avatar,
+    }));
+
     // Verificar si el sorteo ya se realizó
     if (!participant.amigoSecreto || participant.amigoSecreto.trim() === '') {
       // Sorteo NO realizado
@@ -71,11 +80,11 @@ export async function POST(request: NextRequest) {
         message: 'Paciencia... La magia del sorteo aún no ocurre. Vuelve más tarde.',
         tuPersonaje: participant.personaje,
         tuAvatar: participant.avatar,
+        participantes,
       });
     }
 
     // Sorteo SÍ realizado - Buscar los datos del amigo secreto
-    const allParticipants = await getAllParticipants();
     const amigoSecretoPersonaje = decrypt(participant.amigoSecreto);
     const amigoSecreto = allParticipants.find(
       (p) => p.personaje === amigoSecretoPersonaje
@@ -103,6 +112,7 @@ export async function POST(request: NextRequest) {
           opcion3: amigoSecreto.regalo3,
         },
       },
+      participantes,
     });
   } catch (error) {
     console.error('Error en el login de usuario:', error);

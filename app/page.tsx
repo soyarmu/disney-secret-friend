@@ -21,9 +21,15 @@ interface AssignedCharacter {
   estilo: string;
 }
 
+interface ParticipatingCharacter {
+  personaje: string;
+  avatar: string;
+}
+
 interface AmigoSecretoData {
   tuPersonaje: string;
   tuAvatar: string;
+  participantes?: ParticipatingCharacter[];
   amigoSecreto: {
     personaje: string;
     avatar: string;
@@ -66,6 +72,7 @@ export default function HomePage() {
   const [loginError, setLoginError] = useState('');
   const [amigoSecretoData, setAmigoSecretoData] = useState<AmigoSecretoData | null>(null);
   const [tuPersonajeInfo, setTuPersonajeInfo] = useState<{ personaje: string; avatar: string } | null>(null);
+  const [participantes, setParticipantes] = useState<ParticipatingCharacter[]>([]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -130,10 +137,12 @@ export default function HomePage() {
           personaje: data.tuPersonaje,
           avatar: data.tuAvatar,
         });
+        setParticipantes(data.participantes || []);
         setResultMode('esperando');
       } else {
         // Sorteo realizado - mostrar amigo secreto
         setAmigoSecretoData(data);
+        setParticipantes(data.participantes || []);
         setResultMode('revelado');
       }
     } catch (err) {
@@ -148,6 +157,7 @@ export default function HomePage() {
     setAssignedCharacter(null);
     setAmigoSecretoData(null);
     setTuPersonajeInfo(null);
+    setParticipantes([]);
     setLoginEmail('');
     setLoginPassword('');
     setFormData({
@@ -186,7 +196,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      <div className="w-full max-w-2xl relative z-10">
+      <div className={`w-full ${resultMode === 'none' || resultMode === 'registrado' ? 'max-w-2xl' : 'max-w-4xl'} relative z-10 transition-all duration-300`}>
         <AnimatePresence mode="wait">
           {resultMode === 'none' ? (
             // VISTA PRINCIPAL CON TABS
@@ -696,9 +706,82 @@ export default function HomePage() {
                 </p>
 
                 <p className="text-lg text-purple-300 max-w-md mx-auto mb-8">
-                  El administrador aún no ha realizado el sorteo mágico. 
+                  El administrador aún no ha realizado el sorteo mágico.
                   Vuelve más tarde para descubrir a quién le vas a regalar. 🎁
                 </p>
+
+                {/* Personajes en el sorteo */}
+                {participantes.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/30 mb-8 text-left"
+                  >
+                    <div className="text-center mb-6">
+                      <h3 className="text-2xl font-bold text-disney-gold flex items-center justify-center gap-2">
+                        <span>🎭</span> Personajes Participantes ({participantes.length})
+                      </h3>
+                      <p className="text-sm text-purple-300 mt-1">
+                        Personajes registrados en el sorteo mágico
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 max-h-96 overflow-y-auto pr-1">
+                      {participantes.map((p, idx) => {
+                        const isMe = p.personaje === tuPersonajeInfo.personaje;
+                        return (
+                          <div
+                            key={p.personaje || idx}
+                            className={`flex flex-col items-center text-center p-3 rounded-xl border transition-all ${
+                              isMe
+                                ? 'bg-gradient-to-b from-yellow-500/20 to-purple-900/40 border-disney-gold/60 ring-1 ring-disney-gold/50'
+                                : 'bg-purple-950/40 border-purple-400/20 hover:border-purple-300/40'
+                            }`}
+                          >
+                            <div className="relative mb-2">
+                              <div
+                                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full p-1 ${
+                                  isMe
+                                    ? 'bg-gradient-to-tr from-disney-gold to-yellow-300'
+                                    : 'bg-gradient-to-tr from-purple-500/50 to-blue-500/50'
+                                }`}
+                              >
+                                <div className="w-full h-full rounded-full bg-disney-blue/80 overflow-hidden flex items-center justify-center">
+                                  {p.avatar ? (
+                                    <img
+                                      src={p.avatar}
+                                      alt={p.personaje}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.personaje)}`;
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-2xl">🎭</span>
+                                  )}
+                                </div>
+                              </div>
+                              {isMe && (
+                                <span className="absolute -top-1 -right-1 text-xs bg-yellow-500 text-disney-blue font-bold px-1.5 py-0.5 rounded-full shadow">
+                                  ✨
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs sm:text-sm font-bold text-disney-gold line-clamp-2 leading-tight">
+                              {p.personaje}
+                            </p>
+                            {isMe && (
+                              <span className="mt-1 text-[10px] sm:text-xs font-semibold text-yellow-300 bg-yellow-500/20 px-2 py-0.5 rounded-full border border-yellow-400/40">
+                                Tú
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
 
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -844,6 +927,97 @@ export default function HomePage() {
                 <p className="text-purple-300 text-lg mb-6">
                   Recuerda: ¡Elige uno de estos regalos para hacer magia! 🌟
                 </p>
+
+                {/* Todos los personajes participantes */}
+                {participantes.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.0 }}
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/30 mb-8 text-left"
+                  >
+                    <div className="text-center mb-6">
+                      <h3 className="text-2xl font-bold text-disney-gold flex items-center justify-center gap-2">
+                        <span>🎭</span> Personajes en el Sorteo ({participantes.length})
+                      </h3>
+                      <p className="text-sm text-purple-300 mt-1">
+                        Todos los personajes mágicos que están participando en el juego
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 max-h-96 overflow-y-auto pr-1">
+                      {participantes.map((p, idx) => {
+                        const isMe = p.personaje === amigoSecretoData.tuPersonaje;
+                        const isTarget = p.personaje === amigoSecretoData.amigoSecreto.personaje;
+
+                        return (
+                          <div
+                            key={p.personaje || idx}
+                            className={`flex flex-col items-center text-center p-3 rounded-xl border transition-all ${
+                              isTarget
+                                ? 'bg-gradient-to-b from-pink-500/30 to-purple-900/40 border-pink-400 shadow-md shadow-pink-500/20 ring-1 ring-pink-400'
+                                : isMe
+                                ? 'bg-gradient-to-b from-yellow-500/20 to-purple-900/40 border-disney-gold/60 ring-1 ring-disney-gold/50'
+                                : 'bg-purple-950/40 border-purple-400/20 hover:border-purple-300/40'
+                            }`}
+                          >
+                            <div className="relative mb-2">
+                              <div
+                                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full p-1 ${
+                                  isTarget
+                                    ? 'bg-gradient-to-tr from-pink-400 via-purple-300 to-yellow-300'
+                                    : isMe
+                                    ? 'bg-gradient-to-tr from-disney-gold to-yellow-300'
+                                    : 'bg-gradient-to-tr from-purple-500/50 to-blue-500/50'
+                                }`}
+                              >
+                                <div className="w-full h-full rounded-full bg-disney-blue/80 overflow-hidden flex items-center justify-center">
+                                  {p.avatar ? (
+                                    <img
+                                      src={p.avatar}
+                                      alt={p.personaje}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.personaje)}`;
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-2xl">🎭</span>
+                                  )}
+                                </div>
+                              </div>
+                              {isTarget && (
+                                <span className="absolute -top-1 -right-1 text-xs bg-pink-500 text-white font-bold px-1.5 py-0.5 rounded-full shadow">
+                                  🎁
+                                </span>
+                              )}
+                              {isMe && !isTarget && (
+                                <span className="absolute -top-1 -right-1 text-xs bg-yellow-500 text-disney-blue font-bold px-1.5 py-0.5 rounded-full shadow">
+                                  ✨
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs sm:text-sm font-bold text-disney-gold line-clamp-2 leading-tight">
+                              {p.personaje}
+                            </p>
+
+                            {isTarget && (
+                              <span className="mt-1 text-[10px] sm:text-xs font-semibold text-pink-300 bg-pink-500/20 px-2 py-0.5 rounded-full border border-pink-400/40">
+                                Tu amigo secreto
+                              </span>
+                            )}
+                            {isMe && !isTarget && (
+                              <span className="mt-1 text-[10px] sm:text-xs font-semibold text-yellow-300 bg-yellow-500/20 px-2 py-0.5 rounded-full border border-yellow-400/40">
+                                Tú
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
 
                 <motion.button
                   initial={{ opacity: 0 }}
